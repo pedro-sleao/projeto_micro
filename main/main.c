@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <math.h>
 #include <inttypes.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -365,8 +366,15 @@ static int32_t bt_app_a2d_data_cb(uint8_t *data, int32_t len)
     }
 
     int16_t *p_buf = (int16_t *)data;
-    for (int i = 0; i < (len >> 1); i++) {
-        p_buf[i] = rand() % (1 << 16);
+    static float phase = 0.0f;
+    float phase_inc = 2.0f * M_PI * 200 / 88200;
+
+    for (int i = 0; i < 512/2; i++) {
+        p_buf[i] = (int16_t)(10000 * sinf(phase));
+        phase += phase_inc;
+        if (phase >= 2.0f * M_PI) {
+            phase -= 2.0f * M_PI;  // Mantém a fase dentro de [0, 2π]
+        }
     }
 
     return len;
@@ -514,15 +522,15 @@ static void bt_app_av_media_proc(uint16_t event, void *param)
         break;
     }
     case APP_AV_MEDIA_STATE_STARTED: {
-        if (event == BT_APP_HEART_BEAT_EVT) {
-            /* stop media after 10 heart beat intervals */
-            if (++s_intv_cnt >= 10) {
-                ESP_LOGI(BT_AV_TAG, "a2dp media suspending...");
-                esp_a2d_media_ctrl(ESP_A2D_MEDIA_CTRL_SUSPEND);
-                s_media_state = APP_AV_MEDIA_STATE_STOPPING;
-                s_intv_cnt = 0;
-            }
-        }
+        // if (event == BT_APP_HEART_BEAT_EVT) {
+        //     /* stop media after 10 heart beat intervals */
+        //     if (++s_intv_cnt >= 10) {
+        //         ESP_LOGI(BT_AV_TAG, "a2dp media suspending...");
+        //         esp_a2d_media_ctrl(ESP_A2D_MEDIA_CTRL_SUSPEND);
+        //         s_media_state = APP_AV_MEDIA_STATE_STOPPING;
+        //         s_intv_cnt = 0;
+        //     }
+        // }
         break;
     }
     case APP_AV_MEDIA_STATE_STOPPING: {
